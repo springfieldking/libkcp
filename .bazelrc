@@ -1,0 +1,9 @@
+build --cxxopt="--std=c++17"
+# online config
+build --copt=-O2
+
+# debug config
+# build --copt=-g --strip=never
+
+# test config
+test --cache_test_results=no --test_output=all
