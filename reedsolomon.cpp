@@ -63,10 +63,14 @@ ReedSolomon::Encode(std::vector<row_type> &shards) {
     checkShards(shards, false);
 
     // Get the slice of output buffers.
-    std::vector<row_type> output(shards.begin() + m_dataShards, shards.end());
+    static thread_local std::vector<row_type> output(shards.size() - m_dataShards);
+    output.clear();
+    output.assign(shards.begin() + m_dataShards, shards.end());
 
     // Do the coding.
-    std::vector<row_type> input(shards.begin(), shards.begin() + m_dataShards);
+    static thread_local std::vector<row_type> input(m_dataShards);
+    input.clear();
+    input.assign(shards.begin(), shards.begin() + m_dataShards);
     codeSomeShards(parity, input, output, m_parityShards);
 };
 
@@ -78,9 +82,9 @@ ReedSolomon::codeSomeShards(std::vector<row_type> &matrixRows, std::vector<row_t
         auto in = inputs[c];
         for (int iRow = 0; iRow < outputCount; iRow++) {
             if (c == 0) {
-                galMulSlice((*matrixRows[iRow])[c], in, outputs[iRow]);
+                galMulSlice((*matrixRows[iRow])[c], in.get()->data(), outputs[iRow].get()->data(), in->size());
             } else {
-                galMulSliceXor((*matrixRows[iRow])[c], in, outputs[iRow]);
+                galMulSliceXor((*matrixRows[iRow])[c], in.get()->data(), outputs[iRow].get()->data(), in->size());
             }
         }
     }

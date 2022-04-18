@@ -2,12 +2,9 @@
 // Created by 理 傅 on 2017/1/2.
 //
 
-#include <err.h>
-#include <sys/time.h>
 #include <iostream>
 #include <stdexcept>
 #include "fec.h"
-#include "sess.h"
 #include "encoding.h"
 
 FEC::FEC(ReedSolomon enc) :enc(enc) {}
@@ -33,13 +30,11 @@ FEC::New(int rxlimit, int dataShards, int parityShards)  {
 }
 
 fecPacket
-FEC::Decode(byte *data, size_t sz) {
+FEC::Decode(byte *data, size_t sz, uint32_t ts) {
     fecPacket pkt;
     data = decode32u(data, &pkt.seqid);
     data = decode16u(data, &pkt.flag);
-    struct timeval time;
-    gettimeofday(&time, NULL);
-    pkt.ts = uint32_t(time.tv_sec * 1000 + time.tv_usec/1000);
+    pkt.ts = ts;
     pkt.data = std::make_shared<std::vector<byte>>(data, data+sz - fecHeaderSize);
     return pkt;
 }
@@ -63,10 +58,9 @@ FEC::MarkFEC(byte *data) {
 }
 
 std::vector<row_type>
-FEC::Input(fecPacket &pkt) {
+FEC::Input(fecPacket &pkt, uint32_t now) {
     std::vector<row_type> recovered;
 
-    uint32_t now = currentMs();
     if (now-lastCheck >= fecExpire) {
         for (auto it = rx.begin();it !=rx.end();) {
             if (now - it->ts > fecExpire) {
@@ -114,12 +108,14 @@ FEC::Input(fecPacket &pkt) {
         int first = 0;
         size_t maxlen = 0;
 
-        std::vector<row_type> shardVec(totalShards);
-        std::vector<bool> shardflag(totalShards, false);
+        static thread_local std::vector<row_type> shardVec(totalShards);
+        static thread_local std::vector<bool> shardflag(totalShards, false);
 
         for (auto i = searchBegin; i <= searchEnd; i++) {
             auto seqid = rx[i].seqid;
             if (seqid > shardEnd) {
+                shardVec[seqid%totalShards] = nullptr;
+                shardflag[seqid%totalShards] = false;
                 break;
             } else if (seqid >= shardBegin) {
                 shardVec[seqid%totalShards] = rx[i].data;

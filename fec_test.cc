@@ -61,7 +61,7 @@ TEST(FEC, Test) {
     } else {
       pkt.flag = typeFEC;
     }
-    recovered = fec.Input(pkt);
+    recovered = fec.Input(pkt, 0);
     if (recovered.size() > 0) {
       dumpMatrix("remove 3,4,5 and recovered", recovered);
     }

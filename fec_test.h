@@ -43,7 +43,7 @@ class FecTest {
       } else {
         pkt.flag = typeFEC;
       }
-      auto recovered = fec.Input(pkt);
+      auto recovered = fec.Input(pkt, 0);
       if (recovered.size() > 0) {
         // std::cout << "input data index:" << i << ", recovered:" << recovered.size() << std::endl;
       }
