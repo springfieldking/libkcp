@@ -6,7 +6,6 @@
 #define KCP_GALOIS_NOASM_H
 
 #include "galois.h"
-#include "matrix.h"
 
 #ifdef __cplusplus
 extern "C" {

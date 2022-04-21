@@ -3,7 +3,6 @@
 //
 
 #include "galois_noasm.h"
-#include "matrix.h"
 
 extern const byte mulTable[256][256];
 
