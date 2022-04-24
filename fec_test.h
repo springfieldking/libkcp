@@ -43,7 +43,9 @@ class FecTest {
       } else {
         pkt.flag = typeFEC;
       }
-      auto recovered = fec.Input(pkt, 0);
+      static thread_local std::vector<row_type> recovered;
+      recovered.clear();
+      fec.Input(pkt, 0, recovered);
       if (recovered.size() > 0) {
         // std::cout << "input data index:" << i << ", recovered:" << recovered.size() << std::endl;
       }

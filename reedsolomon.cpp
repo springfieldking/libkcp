@@ -65,13 +65,13 @@ ReedSolomon::Encode(std::vector<row_type> &shards) {
 
     // Get the slice of output buffers.
     static thread_local std::vector<byte*> output(shards.size() - m_dataShards);
-    output.clear();
-    for (int i = m_dataShards; i < shards.size(); i++) output.push_back(shards[i]->data());
+    std::fill(output.begin(), output.end(), nullptr);
+    for (int i = m_dataShards; i < shards.size(); i++) output[i-m_dataShards] = shards[i]->data();
 
     // Get the slice of input buffers.
     static thread_local std::vector<byte*> input(m_dataShards);
-    input.clear();
-    for (int i = 0; i < m_dataShards; i++) input.push_back(shards[i]->data());
+    std::fill(input.begin(), input.end(), nullptr);
+    for (int i = 0; i < m_dataShards; i++) input[i] = shards[i]->data();
 
     // Do the coding. 前面的逻辑可以保证输入输出的数据都是等长数据
     auto indata_size = shards[0]->size();
@@ -138,9 +138,14 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
     //
     // Also, create an array of indices of the valid rows we do have
     // and the invalid rows we don't have up until we have enough valid rows.
-    std::vector<byte*> subShards(m_dataShards);
-    std::vector<int> validIndices(m_dataShards, 0);
-    std::vector<int> invalidIndices;
+    static thread_local std::vector<byte*> subShards(m_dataShards);
+    static thread_local std::vector<int> validIndices(m_dataShards, 0);
+    static thread_local std::vector<int> invalidIndices;
+
+    // clean
+    std::fill(subShards.begin(), subShards.end(), nullptr);
+    std::fill(validIndices.begin(), validIndices.end(), 0);
+    invalidIndices.clear();
     int subMatrixRow = 0;
     // 创建非空子矩阵(只包含非空的数据部分，fec部分不包含)
     for (int matrixRow = 0; matrixRow < m_totalShards && subMatrixRow < m_dataShards; matrixRow++) {
@@ -195,8 +200,11 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
     // The Input to the coding is all of the shards we actually
     // have, and the output is the missing data shards.  The computation
     // is done using the special Decode matrix we just built.
-    std::vector<byte*> outputs(m_parityShards); // 输出矩阵
-    std::vector<byte*> matrixRows(m_parityShards); // 编码解码矩阵
+    static thread_local std::vector<byte*> outputs(m_parityShards); // 输出矩阵
+    static thread_local std::vector<byte*> matrixRows(m_parityShards); // 编码解码矩阵
+    // clean
+    std::fill(outputs.begin(), outputs.end(), nullptr);
+    std::fill(matrixRows.begin(), matrixRows.end(), nullptr);
     int outputCount = 0;
 
     for (int iShard = 0; iShard < m_dataShards; iShard++) {

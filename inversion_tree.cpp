@@ -19,7 +19,7 @@ inversionTree::GetInvertedMatrix(std::vector<int> &invalidIndices) {
         return m_root.m_matrix;
     }
 
-    return m_root.getInvertedMatrix(invalidIndices, 0);
+    return m_root.getInvertedMatrix(invalidIndices, 0, 0);
 }
 
 int
@@ -43,14 +43,14 @@ inversionTree::InsertInvertedMatrix(std::vector<int> &invalidIndices, MatrixPtr 
 }
 
 MatrixPtr
-inversionNode::getInvertedMatrix(std::vector<int> &invalidIndices, int parent) {
+inversionNode::getInvertedMatrix(const std::vector<int> &invalidIndices, int index, int parent) {
     // Get the child node to search next from the list of m_children.  The
     // list of m_children starts relative to the parent index passed in
     // because the indices of invalid rows is sorted (by default).  As we
     // search recursively, the first invalid index gets popped off the list,
     // so when searching through the list of m_children, use that first invalid
     // index to find the child node.
-    int firstIndex = invalidIndices[0];
+    int firstIndex = invalidIndices[index];
     auto node = m_children[firstIndex - parent];
 
     // If the child node doesn't exist in the list yet, fail fast by
@@ -61,12 +61,12 @@ inversionNode::getInvertedMatrix(std::vector<int> &invalidIndices, int parent) {
 
     // If there's more than one invalid index left in the list we should
     // keep searching recursively.
-    if (invalidIndices.size() > 1) {
+    if (invalidIndices.size() - index> 1) {
         // Search recursively on the child node by passing in the invalid indices
         // with the first index popped off the front.  Also the parent index to
         // pass down is the first index plus one.
-        std::vector<int> v(invalidIndices.begin() + 1, invalidIndices.end());
-        return node->getInvertedMatrix(v, firstIndex + 1);
+        // no copy std::vector<int> v(invalidIndices.begin() + 1, invalidIndices.end());
+        return node->getInvertedMatrix(invalidIndices, index + 1, firstIndex + 1);
     }
 
     // If there aren't any more invalid indices to search, we've found our

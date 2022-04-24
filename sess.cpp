@@ -109,7 +109,9 @@ UDPSession::Update(uint32_t current) noexcept {
                 // allow FEC packet processing with correct flags.
                 if (pkt.flag == typeData || pkt.flag == typeFEC) {
                     // input to FEC, and see if we can recover data.
-                    auto recovered = fec.Input(pkt, current);
+                    static thread_local std::vector<row_type> recovered;
+                    recovered.clear();
+                    fec.Input(pkt, current, recovered);
 
                     // we have some data recovered.
                     for (auto &r : recovered) {

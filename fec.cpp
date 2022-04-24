@@ -58,8 +58,7 @@ FEC::MarkFEC(byte *data) {
 }
 
 std::vector<row_type>
-FEC::Input(fecPacket &pkt, uint32_t now) {
-    std::vector<row_type> recovered;
+FEC::Input(fecPacket &pkt, uint32_t now, std::vector<row_type>& recovered) {
     // 清理过期数据
     if (now-lastCheck >= fecExpire) {
         for (auto it = rx.begin();it !=rx.end();) {

@@ -47,7 +47,7 @@ TEST(FEC, Test) {
   dumpMatrix("encoded", shards);
 
   // 丢弃3,4,5数据并且恢复
-  std::vector<row_type> recovered;
+  static thread_local std::vector<row_type> recovered;
   for (int i = 0; i < shards.size(); i++) {
     if (i == 3 || i == 4 || i == 5) {
       continue;
@@ -61,7 +61,8 @@ TEST(FEC, Test) {
     } else {
       pkt.flag = typeFEC;
     }
-    recovered = fec.Input(pkt, 0);
+    recovered.clear();
+    fec.Input(pkt, 0, recovered);
     if (recovered.size() > 0) {
       dumpMatrix("remove 3,4,5 and recovered", recovered);
     }
