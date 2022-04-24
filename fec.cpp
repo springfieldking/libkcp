@@ -110,12 +110,11 @@ FEC::Input(fecPacket &pkt, uint32_t now) {
 
         static thread_local std::vector<row_type> shardVec(totalShards);
         static thread_local std::vector<bool> shardflag(totalShards, false);
-
+        std::fill(shardVec.begin(), shardVec.end(), nullptr);
+        std::fill(shardflag.begin(), shardflag.end(), false);
         for (auto i = searchBegin; i <= searchEnd; i++) {
             auto seqid = rx[i].seqid;
             if (seqid > shardEnd) {
-                shardVec[seqid%totalShards] = nullptr;
-                shardflag[seqid%totalShards] = false;
                 break;
             } else if (seqid >= shardBegin) {
                 shardVec[seqid%totalShards] = rx[i].data;
