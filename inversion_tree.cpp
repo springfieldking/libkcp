@@ -37,7 +37,7 @@ inversionTree::InsertInvertedMatrix(std::vector<int> &invalidIndices, MatrixPtr 
     // Recursively create nodes for the inverted matrix in the tree until
     // we reach the node to insert the matrix to.  We start by passing in
     // 0 as the parent index as we start at the m_root of the tree.
-    m_root.insertInvertedMatrix(invalidIndices, matrix, shards, 0);
+    m_root.insertInvertedMatrix(invalidIndices, 0, matrix, shards, 0);
 
     return 0;
 }
@@ -79,7 +79,8 @@ inversionNode::getInvertedMatrix(std::vector<int> &invalidIndices, int parent) {
 
 void
 inversionNode::insertInvertedMatrix(
-        std::vector<int> &invalidIndices,
+        const std::vector<int> &invalidIndices,
+        int index,
         MatrixPtr &matrix,
         int shards,
         int parent) {
@@ -89,7 +90,7 @@ inversionNode::insertInvertedMatrix(
     // search recursively, the first invalid index gets popped off the list,
     // so when searching through the list of m_children, use that first invalid
     // index to find the child node.
-    int firstIndex = invalidIndices[0];
+    int firstIndex = invalidIndices[index];
     auto node = m_children[firstIndex - parent];
 
     // If the child node doesn't exist in the list yet, create a new
@@ -109,13 +110,13 @@ inversionNode::insertInvertedMatrix(
     // If there's more than one invalid index left in the list we should
     // keep searching recursively in order to find the node to add our
     // matrix.
-    if (invalidIndices.size() > 1) {
+    if (invalidIndices.size() - index > 1) {
         // As above, search recursively on the child node by passing in
         // the invalid indices with the first index popped off the front.
         // Also the total number of shards and parent index are passed down
         // which is equal to the first index plus one.
-        std::vector<int> v(invalidIndices.begin() + 1, invalidIndices.end());
-        node->insertInvertedMatrix(v, matrix, shards, firstIndex + 1);
+        // no copy std::vector<int> v(invalidIndices.begin() + 1, invalidIndices.end());
+        node->insertInvertedMatrix(invalidIndices, index + 1, matrix, shards, firstIndex + 1);
     } else {
         node->m_matrix = matrix;
     }
