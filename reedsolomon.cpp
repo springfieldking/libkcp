@@ -47,10 +47,10 @@ ReedSolomon::New(int dataShards, int parityShards) {
     // with the original data.
     r.tree = inversionTree::newInversionTree(dataShards, parityShards);
 
-    r.parity = std::vector<row_type>(parityShards);
+    r.parity = std::vector<byte *>(parityShards);
     for (int i = 0; i < parityShards; i++) {
-      r.parity[i] =
-          std::make_shared<std::vector<byte>>(r.m->data[dataShards + i], r.m->data[dataShards + i] + r.m->cols);
+      r.parity[i] = r.m->data[dataShards + i];
+          // std::make_shared<std::vector<byte>>(r.m->data[dataShards + i], r.m->data[dataShards + i] + r.m->cols);
     }
     return r;
 }
@@ -64,28 +64,31 @@ ReedSolomon::Encode(std::vector<row_type> &shards) {
     checkShards(shards, false);
 
     // Get the slice of output buffers.
-    static thread_local std::vector<row_type> output(shards.size() - m_dataShards);
+    static thread_local std::vector<byte*> output(shards.size() - m_dataShards);
     output.clear();
-    output.assign(shards.begin() + m_dataShards, shards.end());
+    for (int i = m_dataShards; i < shards.size(); i++) output.push_back(shards[i]->data());
 
-    // Do the coding.
-    static thread_local std::vector<row_type> input(m_dataShards);
+    // Get the slice of input buffers.
+    static thread_local std::vector<byte*> input(m_dataShards);
     input.clear();
-    input.assign(shards.begin(), shards.begin() + m_dataShards);
-    codeSomeShards(parity, input, output, m_parityShards);
+    for (int i = 0; i < m_dataShards; i++) input.push_back(shards[i]->data());
+
+    // Do the coding. 前面的逻辑可以保证输入输出的数据都是等长数据
+    auto indata_size = shards[0]->size();
+    codeSomeShards(parity, input, indata_size, output, m_parityShards);
 };
 
 
 void
-ReedSolomon::codeSomeShards(std::vector<row_type> &matrixRows, std::vector<row_type> &inputs,
-                            std::vector<row_type> &outputs, int outputCount) {
+ReedSolomon::codeSomeShards(std::vector<byte*> &matrixRows, std::vector<byte*> &inputs, int data_size,
+                            std::vector<byte*> &outputs, int outputCount) {
     for (int c = 0; c < m_dataShards; c++) {
         auto in = inputs[c];
-        for (int iRow = 0; iRow < outputCount; iRow++) {
+        for (int r = 0; r < outputCount; r++) {
             if (c == 0) {
-                galMulSlice((*matrixRows[iRow])[c], in.get()->data(), outputs[iRow].get()->data(), in->size());
+                galMulSlice(matrixRows[r][c], in, outputs[r], data_size);
             } else {
-                galMulSliceXor((*matrixRows[iRow])[c], in.get()->data(), outputs[iRow].get()->data(), in->size());
+                galMulSliceXor(matrixRows[r][c], in, outputs[r], data_size);
             }
         }
     }
@@ -93,17 +96,23 @@ ReedSolomon::codeSomeShards(std::vector<row_type> &matrixRows, std::vector<row_t
 
 void
 ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
+    /*
+    // fec和rs看成一个模块，这里不用检查
     if (shards.size() != m_totalShards) {
         throw std::invalid_argument("too few shards given");
     }
 
     // Check arguments
+    // fec和rs看成一个模块，这里不用检查
     checkShards(shards,true);
-
+    */
     auto shardSize = this->shardSize(shards);
 
+    // fec和rs看成一个模块，这里不用检查
+    // 检查shard中数据的条数
     // Quick check: are all of the shards present?  If so, there's
     // nothing to do.
+    /*
     int numberPresent = 0;
     for (int i = 0; i < m_totalShards; i++) {
         if (shards[i] != nullptr) {
@@ -121,7 +130,7 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
     if (numberPresent < m_dataShards) {
         throw std::invalid_argument("too few shards given");
     }
-
+    */
     // Pull out an array holding just the shards that
     // correspond to the rows of the submatrix.  These shards
     // will be the Input to the decoding process that re-creates
@@ -129,14 +138,14 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
     //
     // Also, create an array of indices of the valid rows we do have
     // and the invalid rows we don't have up until we have enough valid rows.
-    std::vector<row_type> subShards(m_dataShards);
+    std::vector<byte*> subShards(m_dataShards);
     std::vector<int> validIndices(m_dataShards, 0);
     std::vector<int> invalidIndices;
     int subMatrixRow = 0;
-
+    // 创建非空子矩阵(只包含非空的数据部分，fec部分不包含)
     for (int matrixRow = 0; matrixRow < m_totalShards && subMatrixRow < m_dataShards; matrixRow++) {
         if (shards[matrixRow] != nullptr) {
-            subShards[subMatrixRow] = shards[matrixRow];
+            subShards[subMatrixRow] = shards[matrixRow]->data();
             validIndices[subMatrixRow] = matrixRow;
             subMatrixRow++;
         } else {
@@ -186,27 +195,31 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
     // The Input to the coding is all of the shards we actually
     // have, and the output is the missing data shards.  The computation
     // is done using the special Decode matrix we just built.
-    std::vector<row_type> outputs(m_parityShards);
-    std::vector<row_type> matrixRows(m_parityShards);
+    std::vector<byte*> outputs(m_parityShards); // 输出矩阵
+    std::vector<byte*> matrixRows(m_parityShards); // 编码解码矩阵
     int outputCount = 0;
 
     for (int iShard = 0; iShard < m_dataShards; iShard++) {
         if (shards[iShard] == nullptr) {
             shards[iShard] = std::make_shared<std::vector<byte>>(shardSize);
-            outputs[outputCount] = shards[iShard];
-            matrixRows[outputCount] = std::make_shared<std::vector<byte>>(
-                dataDecodeMatrix->data[iShard], dataDecodeMatrix->data[iShard] + dataDecodeMatrix->cols);
+            outputs[outputCount] = shards[iShard]->data();
+            matrixRows[outputCount] = dataDecodeMatrix->data[iShard];
             outputCount++;
         }
     }
-    codeSomeShards(matrixRows, subShards, outputs, outputCount);
+
+    auto indata_size = shards[0]->size(); // 前面的逻辑可以保证输入输出的数据都是等长数据
+    codeSomeShards(matrixRows, subShards, indata_size, outputs, outputCount);
 
     // Now that we have all of the data shards intact, we can
     // compute any of the parity that is missing.
     //
     // The Input to the coding is ALL of the data shards, including
     // any that we just calculated.  The output is whichever of the
-    // data shards were missing.
+    // data shards were missing. 
+    // fec数据的恢复其实是非必须的，可以选择不恢复，作者可能只是为了实现完成功能
+    return; // just return is fine
+    /*
     outputCount = 0;
     for (int iShard = m_dataShards; iShard < m_totalShards; iShard++) {
         if (shards[iShard] == nullptr) {
@@ -217,6 +230,7 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
         }
     }
     codeSomeShards(matrixRows, shards, outputs, outputCount);
+    */
 }
 
 void

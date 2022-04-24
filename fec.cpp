@@ -60,7 +60,7 @@ FEC::MarkFEC(byte *data) {
 std::vector<row_type>
 FEC::Input(fecPacket &pkt, uint32_t now) {
     std::vector<row_type> recovered;
-
+    // 清理过期数据
     if (now-lastCheck >= fecExpire) {
         for (auto it = rx.begin();it !=rx.end();) {
             if (now - it->ts > fecExpire) {
@@ -72,7 +72,7 @@ FEC::Input(fecPacket &pkt, uint32_t now) {
         lastCheck = now;
     }
 
-
+    // 寻找插入位置,并且插入
     // insertion
     auto n = this->rx.size() -1;
     int insertIdx = 0;
@@ -87,11 +87,11 @@ FEC::Input(fecPacket &pkt, uint32_t now) {
     // insert into ordered rx queue
     rx.insert(rx.begin()+insertIdx, pkt);
 
-    // shard range for current packet
+    // shard range for current packet, 找到一组shard的起始seqid
     auto shardBegin = pkt.seqid - pkt.seqid%totalShards;
     auto shardEnd = shardBegin + totalShards - 1;
 
-    // max search range in ordered queue for current shard
+    // max search range in ordered queue for current shard, 找到一组shard的起始位置
     auto searchBegin = insertIdx - int(pkt.seqid%totalShards);
     if (searchBegin < 0) {
         searchBegin = 0;
@@ -107,7 +107,7 @@ FEC::Input(fecPacket &pkt, uint32_t now) {
         int numDataShard = 0;
         int first = 0;
         size_t maxlen = 0;
-
+        // 构建一组shard
         static thread_local std::vector<row_type> shardVec(totalShards);
         static thread_local std::vector<bool> shardflag(totalShards, false);
         std::fill(shardVec.begin(), shardVec.end(), nullptr);
@@ -132,9 +132,9 @@ FEC::Input(fecPacket &pkt, uint32_t now) {
             }
         }
 
-        if (numDataShard == dataShards) { // no lost
+        if (numDataShard == dataShards) { // no lost，没有丢失数据，直接清理掉这组shard
             rx.erase(rx.begin()+first, rx.begin() + first+numshard);
-        } else if (numshard >= dataShards) { // recoverable
+        } else if (numshard >= dataShards) { // recoverable, 有效数据量大于dataShards才能恢复剩余数据
             // equally resized
             for (int i=0;i<shardVec.size();i++) {
                 if (shardVec[i] != nullptr) {
@@ -149,7 +149,7 @@ FEC::Input(fecPacket &pkt, uint32_t now) {
                     recovered.push_back(shardVec[k]);
                 }
             }
-            rx.erase(rx.begin()+first, rx.begin() + first+numshard);
+            rx.erase(rx.begin()+first, rx.begin() + first+numshard); // 清理掉用完的数据
         }
     }
 
