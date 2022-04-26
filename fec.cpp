@@ -57,7 +57,7 @@ FEC::MarkFEC(byte *data) {
     }
 }
 
-std::vector<row_type>
+void
 FEC::Input(fecPacket &pkt, uint32_t now, std::vector<row_type>& recovered) {
     // 清理过期数据
     if (now-lastCheck >= fecExpire) {
@@ -77,7 +77,7 @@ FEC::Input(fecPacket &pkt, uint32_t now, std::vector<row_type>& recovered) {
     int insertIdx = 0;
     for (int i=n;i>=0;i--) {
         if (pkt.seqid == rx[i].seqid) {
-            return recovered;
+            return;
         } else if (pkt.seqid > rx[i].seqid) {
             insertIdx = i + 1;
             break;
@@ -157,7 +157,7 @@ FEC::Input(fecPacket &pkt, uint32_t now, std::vector<row_type>& recovered) {
         rx.erase(rx.begin());
     }
 
-    return recovered;
+    return;
 }
 
 

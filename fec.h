@@ -35,7 +35,7 @@ public:
     inline bool isEnabled() { return dataShards > 0 && parityShards > 0 ; }
 
     // Input a FEC packet, and return recovered data if possible.
-    std::vector<row_type> Input(fecPacket &pkt, uint32_t now, std::vector<row_type>& recovered);
+    void Input(fecPacket &pkt, uint32_t now, std::vector<row_type>& recovered);
 
     // Calc Parity Shards
     void Encode(std::vector<row_type> &shards);
