@@ -6,7 +6,6 @@
 #define KCP_REEDSOLOMON_H
 
 #include "matrix.h"
-#include "inversion_tree.h"
 #include "galois.h"
 
 using row_type = std::shared_ptr<std::vector<byte>>;
@@ -52,7 +51,7 @@ private:
     int m_totalShards; // Total number of shards. Calculated, and should not be modified.
 
     MatrixPtr m;
-    inversionTree tree;
+    // inversionTree tree;
     std::vector<byte*> parity;
 
     int shardSize(std::vector<row_type> &shards);

@@ -12,7 +12,7 @@ ReedSolomon::ReedSolomon(int dataShards, int parityShards) :
         m_dataShards(dataShards),
         m_parityShards(parityShards),
         m_totalShards(dataShards + parityShards) {
-    tree = inversionTree::newInversionTree(dataShards, parityShards);
+    //tree = inversionTree::newInversionTree(dataShards, parityShards);
 }
 
 ReedSolomon
@@ -45,7 +45,7 @@ ReedSolomon::New(int dataShards, int parityShards) {
     // The inversion m_root node will have the identity matrix as
     // its inversion matrix because it implies there are no errors
     // with the original data.
-    r.tree = inversionTree::newInversionTree(dataShards, parityShards);
+    // r.tree = inversionTree::newInversionTree(dataShards, parityShards);
 
     r.parity = std::vector<byte *>(parityShards);
     for (int i = 0; i < parityShards; i++) {
@@ -160,40 +160,40 @@ ReedSolomon::Reconstruct(std::vector<row_type> &shards) {
 
     // Attempt to get the cached inverted matrix out of the tree
     // based on the indices of the invalid rows.
-    auto dataDecodeMatrix = tree.GetInvertedMatrix(invalidIndices);
+    // auto dataDecodeMatrix = tree.GetInvertedMatrix(invalidIndices);
 
     // If the inverted matrix isn't cached in the tree yet we must
     // construct it ourselves and insert it into the tree for the
     // future.  In this way the inversion tree is lazily loaded.
-    if (dataDecodeMatrix == nullptr) {
-        // Pull out the rows of the matrix that correspond to the
-        // shards that we have and build a square matrix.  This
-        // matrix could be used to generate the shards that we have
-        // from the original data.
-        auto subMatrix = std::make_shared<Matrix>(m_dataShards, m_dataShards);
-        for (subMatrixRow = 0; subMatrixRow < validIndices.size(); subMatrixRow++) {
-            for (int c = 0; c < m_dataShards; c++) {
-                subMatrix->at(subMatrixRow, c) = m->at(validIndices[subMatrixRow], c);
-            };
-        }
-
-        // Invert the matrix, so we can go from the encoded shards
-        // back to the original data.  Then pull out the row that
-        // generates the shard that we want to Decode.  Note that
-        // since this matrix maps back to the original data, it can
-        // be used to create a data shard, but not a parity shard.
-        dataDecodeMatrix = Invert(subMatrix);
-        if (dataDecodeMatrix == nullptr) {
-            throw std::runtime_error("cannot get matrix invert");
-        }
-
-        // Cache the inverted matrix in the tree for future use keyed on the
-        // indices of the invalid rows.
-        int ret = tree.InsertInvertedMatrix(invalidIndices, dataDecodeMatrix, m_totalShards);
-        if (ret != 0) {
-            throw std::runtime_error("cannot insert matrix invert");
-        }
+    // if (dataDecodeMatrix == nullptr) {
+    // Pull out the rows of the matrix that correspond to the
+    // shards that we have and build a square matrix.  This
+    // matrix could be used to generate the shards that we have
+    // from the original data.
+    auto subMatrix = std::make_shared<Matrix>(m_dataShards, m_dataShards);
+    for (subMatrixRow = 0; subMatrixRow < validIndices.size(); subMatrixRow++) {
+      for (int c = 0; c < m_dataShards; c++) {
+        subMatrix->at(subMatrixRow, c) = m->at(validIndices[subMatrixRow], c);
+      };
     }
+
+    // Invert the matrix, so we can go from the encoded shards
+    // back to the original data.  Then pull out the row that
+    // generates the shard that we want to Decode.  Note that
+    // since this matrix maps back to the original data, it can
+    // be used to create a data shard, but not a parity shard.
+    auto dataDecodeMatrix = Invert(subMatrix);
+    if (dataDecodeMatrix == nullptr) {
+      throw std::runtime_error("cannot get matrix invert");
+    }
+
+    // Cache the inverted matrix in the tree for future use keyed on the
+    // indices of the invalid rows.
+    //    int ret = tree.InsertInvertedMatrix(invalidIndices, dataDecodeMatrix, m_totalShards);
+    //    if (ret != 0) {
+    //        throw std::runtime_error("cannot insert matrix invert");
+    //    }
+    //}
 
     // Re-create any data shards that were missing.
     //

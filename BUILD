@@ -47,19 +47,6 @@ cc_test(
 )
 
 cc_library(
-    name = "inversion_tree",
-    srcs = [
-        "inversion_tree.cpp",
-    ],
-    hdrs = [
-        "inversion_tree.h",
-    ],
-    deps = [
-        "matrix",
-    ],
-)
-
-cc_library(
     name = "reedsolomon",
     srcs = [
         "reedsolomon.cpp",
@@ -69,7 +56,6 @@ cc_library(
     ],
     deps = [
         "matrix",
-        "inversion_tree",
         "galois",
     ],
 )
