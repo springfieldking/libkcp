@@ -18,7 +18,7 @@ void dumpMatrix(const std::string& name, const std::vector<row_type>& matrix) {
         printf("%5u", b);
       }
     }
-    std::cout << std::endl;
+    std::cout << "\n----- ----- -----" << std::endl;
   }
 }
 
@@ -33,9 +33,9 @@ TEST(FEC, Test) {
   std::random_device rd;
   std::mt19937 mt(rd());
 
-  // 每条长度在1~10内随机
-  std::uniform_int_distribution<byte> dist_1_10(1, 10);
-  // 每条数据的字节随机0~255
+  // 每条长度在128~512内随机(kcp的mtu默认1400,公网一般512,debug可以设置小一点，比如10以内)
+  std::uniform_int_distribution<byte> dist_1_10(128, 512);
+  // 字节内容随机0~255
   std::uniform_int_distribution<byte> dist_0_255(0, 255);
 
   // 同一个fec示例重复编解码多次不同的数据
